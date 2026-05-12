@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#1a252f"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="Salário"/>
+  <title>🏭 Calculadora de Salário</title>
+  <link rel="manifest" href="manifest.json"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <!-- Biblioteca html2canvas para capturar tela -->
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#1a252f; --card:#243342; --card2:#2c3e50;
+      --blue:#3498db; --green:#2ecc71; --red:#e74c3c;
+      --yellow:#f1c40f; --purple:#9b59b6; --orange:#e67e22;
+      --teal:#1abc9c; --text:#ecf0f1; --sub:#95a5a6;
+      --border:#34495e; --radius:14px; --shadow:0 4px 16px rgba(0,0,0,.3);
+    }
+    html,body{height:100%;font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);overflow:hidden;}
+
+    /* ── Telas ── */
+    .tela{display:none;flex-direction:column;height:100vh;}
+    .tela.ativa{display:flex;}
+
+    /* ── Header ── */
+    .header{background:linear-gradient(135deg,#1a252f,#2c3e50);padding:14px 16px;border-bottom:2px solid var(--blue);flex-shrink:0;}
+    .header-row{display:flex;align-items:center;justify-content:space-between;}
+    .header h1{font-size:18px;font-weight:900;color:var(--blue);}
+    .header p{font-size:11px;color:var(--teal);margin-top:3px;}
+    .btn-voltar{background:rgba(52,152,219,.2);border:1px solid var(--blue);color:var(--blue);
+                font-family:inherit;font-size:13px;font-weight:700;padding:7px 12px;border-radius:20px;cursor:pointer;}
+
+    /* ── Scroll ── */
+    .scroll{flex:1;overflow-y:auto;padding:14px;padding-bottom:36px;}
+    .scroll::-webkit-scrollbar{width:0;}
+
+    /* ── Tabs ── */
+    .tabs{display:flex;gap:6px;margin-bottom:14px;flex-shrink:0;padding:0 14px;}
+    .tab{flex:1;padding:10px 4px;border:2px solid var(--border);border-radius:10px;
+         background:var(--card);color:var(--sub);font-family:inherit;font-size:12px;
+         font-weight:700;cursor:pointer;text-align:center;transition:all .2s;}
+    .tab.ativo{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+    /* ── Cards ── */
+    .card{background:var(--card);border-radius:var(--radius);padding:14px;margin-bottom:12px;box-shadow:var(--shadow);}
+    .card-titulo{font-size:14px;font-weight:800;color:var(--blue);margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+
+    /* ── Campos ── */
+    .campo{margin-bottom:10px;}
+    .campo label{font-size:11px;font-weight:700;color:var(--sub);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:4px;}
+    .campo input,.campo select{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:10px;
+      font-family:inherit;font-size:14px;color:var(--text);background:#1e2d3d;outline:none;transition:border-color .2s;}
+    .campo input:focus,.campo select:focus{border-color:var(--blue);}
+    .campo select option{background:#1e2d3d;}
+    .row-2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+    .row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+
+    /* ── Botões de valor rápido ── */
+    .valores-rapidos{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;}
+    .btn-valor{padding:7px 10px;border:2px solid var(--border);border-radius:8px;background:var(--card2);
+               color:var(--teal);font-family:inherit;font-size:12px;font-weight:700;cursor:pointer;transition:all .2s;}
+    .btn-valor:active{background:var(--blue);border-color:var(--blue);color:#fff;}
+
+    /* ── Nav mês ── */
+    .nav-mes{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+    .btn-nav{padding:8px 14px;border:2px solid var(--border);border-radius:10px;background:var(--card2);
+             color:var(--text);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;}
+    .btn-nav:active{border-color:var(--blue);}
+    .mes-atual{font-size:15px;font-weight:900;color:var(--yellow);text-align:center;flex:1;}
+
+    /* ── Botões turnos ── */
+    .btns-turno{display:flex;gap:8px;margin-bottom:10px;}
+    .btn-turno{flex:1;padding:10px 4px;border:2px solid var(--border);border-radius:10px;
+               background:var(--card2);color:var(--sub);font-family:inherit;font-size:12px;
+               font-weight:700;cursor:pointer;transition:all .2s;text-align:center;}
+    .btn-turno.dia{border-color:var(--blue);color:var(--blue);}
+    .btn-turno.noite{border-color:var(--purple);color:var(--purple);}
+
+    /* ── Calendário ── */
+    .cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+    .cal-header-dia{text-align:center;font-size:10px;font-weight:800;color:var(--sub);padding:4px 0;}
+    .cal-dia{border-radius:8px;padding:4px 2px;text-align:center;cursor:pointer;transition:all .2s;border:2px solid transparent;min-height:44px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;}
+    .cal-dia .num{font-size:13px;font-weight:800;}
+    .cal-dia .tipo{font-size:8px;font-weight:700;letter-spacing:.3px;}
+    .cal-dia.folga{background:rgba(127,140,141,.15);color:var(--sub);}
+    .cal-dia.dia{background:rgba(52,152,219,.2);border-color:var(--blue);color:var(--blue);}
+    .cal-dia.noite{background:rgba(155,89,182,.2);border-color:var(--purple);color:var(--purple);}
+    .cal-dia.domingo-dia{background:rgba(231,76,60,.2);border-color:var(--red);color:var(--red);}
+    .cal-dia.domingo-noite{background:rgba(231,76,60,.2);border-color:var(--red);color:var(--red);}
+    .cal-dia.vazio{background:transparent;cursor:default;border:none;}
+    .cal-dia:not(.vazio):active{transform:scale(.95);}
+
+    /* ── Legenda ── */
+    .legenda{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px;}
+    .leg-item{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:700;}
+    .leg-cor{width:12px;height:12px;border-radius:3px;}
+
+    /* ── Lista de itens (créditos/descontos) ── */
+    .lista-itens{display:flex;flex-direction:column;gap:8px;}
+    .item-row{display:flex;align-items:center;gap:8px;background:var(--card2);border-radius:10px;padding:10px 12px;}
+    .item-row .item-nome{flex:1;font-size:13px;font-weight:700;}
+    .item-row .item-valor{font-size:13px;font-weight:800;}
+    .item-row .item-valor.credito{color:var(--green);}
+    .item-row .item-valor.desconto{color:var(--red);}
+    .btn-remover{background:none;border:none;color:var(--red);font-size:18px;cursor:pointer;padding:0 4px;line-height:1;}
+    .btn-add{width:100%;padding:10px;border:2px dashed var(--border);border-radius:10px;background:none;
+             color:var(--sub);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;transition:all .2s;}
+    .btn-add:active{border-color:var(--blue);color:var(--blue);}
+
+    /* ── Toggle bônus ── */
+    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
+    .toggle{position:relative;width:44px;height:24px;}
+    .toggle input{opacity:0;width:0;height:0;}
+    .slider{position:absolute;inset:0;background:var(--border);border-radius:12px;cursor:pointer;transition:.3s;}
+    .slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
+    input:checked+.slider{background:var(--green);}
+    input:checked+.slider:before{transform:translateX(20px);}
+
+    /* ── Botões principais ── */
+    .btn-calcular{width:100%;padding:16px;background:linear-gradient(135deg,var(--green),#27ae60);
+                  border:none;border-radius:var(--radius);color:#fff;font-family:inherit;
+                  font-size:16px;font-weight:900;cursor:pointer;margin-bottom:10px;transition:opacity .2s;}
+    .btn-calcular:active{opacity:.85;}
+    
+    /* Botão Ver Último Relatório - SEM BORDA */
+    .btn-sec{width:100%;padding:13px;border:none;border-radius:var(--radius);
+             background:rgba(52,152,219,.15);color:var(--blue);
+             font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;transition:opacity .2s;}
+    .btn-sec:active{opacity:.8;}
+    
+    /* Botão Salvar Print */
+    .btn-salvar-print{width:100%;padding:13px;border:2px solid var(--yellow);border-radius:var(--radius);
+                      background:rgba(241,196,15,.1);color:var(--yellow);
+                      font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px;
+                      transition:all .2s;}
+    .btn-salvar-print:active{background:var(--yellow);color:#1a252f;transform:scale(.98);}
+
+    /* ── Resultados ── */
+    .resultado-nome{font-size:20px;font-weight:900;color:var(--green);text-align:center;margin-bottom:4px;}
+    .resultado-mes{font-size:14px;color:var(--blue);text-align:center;margin-bottom:14px;}
+    .bonus-badge{background:rgba(241,196,15,.15);border:2px solid var(--yellow);border-radius:10px;
+                 padding:8px;text-align:center;color:var(--yellow);font-weight:900;font-size:13px;margin-bottom:12px;}
+    .stat-row{display:flex;justify-content:space-between;align-items:center;padding:7px 10px;
+              background:var(--card2);border-radius:8px;margin-bottom:6px;}
+    .stat-label{font-size:13px;color:var(--sub);}
+    .stat-val{font-size:13px;font-weight:800;}
+    .stat-val.bruto{color:var(--blue);}
+    .stat-val.desconto{color:var(--red);}
+    .stat-val.credito{color:var(--green);}
+    .stat-val.bonus{color:var(--yellow);}
+    .stat-val.liquido{color:var(--green);font-size:16px;}
+    .separador{border:none;border-top:2px solid var(--border);margin:12px 0;}
+    .liquido-row{display:flex;justify-content:space-between;align-items:center;
+                 padding:12px 10px;background:rgba(46,204,113,.1);border:2px solid var(--green);
+                 border-radius:10px;margin-top:8px;}
+    .liquido-label{font-size:15px;font-weight:900;color:var(--green);}
+    .liquido-val{font-size:22px;font-weight:900;color:var(--green);}
+
+    /* ── Toast ── */
+    .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);
+           background:#1a252f;border:2px solid var(--blue);color:#fff;padding:10px 22px;
+           border-radius:24px;font-size:13px;font-weight:700;z-index:999;transition:transform .3s;
+           white-space:nowrap;box-shadow:var(--shadow);}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+
+    /* ── Modal ── */
+    .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:20px;}
+    .modal-bg.show{display:flex;}
+    .modal{background:var(--card);border-radius:var(--radius);padding:20px;width:100%;max-width:340px;box-shadow:var(--shadow);}
+    .modal h3{font-size:16px;font-weight:900;color:var(--blue);margin-bottom:14px;}
+    .modal-btns{display:flex;gap:10px;margin-top:16px;}
+    .btn-modal-ok{flex:1;padding:12px;background:var(--green);border:none;border-radius:10px;
+                  color:#fff;font-family:inherit;font-size:14px;font-weight:800;cursor:pointer;}
+    .btn-modal-cancel{flex:1;padding:12px;background:var(--card2);border:2px solid var(--border);
+                      border-radius:10px;color:var(--sub);font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+  </style>
+</head>
+<body>
+
+<!-- ══════════ TELA PRINCIPAL ══════════ -->
+<div id="telaHome" class="tela ativa">
+  <div class="header">
+    <div class="header-row">
+      <div>
+        <h1>🏭 Calculadora de Salário</h1>
+        <p>Dia: 9h+2h(25%) | Noite: 3h+8h(25%) | Dom: 11h(35%)</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs" id="tabsHome">
+    <button class="tab ativo" onclick="setTab('dados')">📝 Dados</button>
+    <button class="tab" onclick="setTab('calendario')">📅 Calendário</button>
+    <button class="tab" onclick="setTab('extras')">💰 Extras</button>
+  </div>
+
+  <div class="scroll" id="conteudoTab">
+    <!-- conteúdo dinâmico -->
+  </div>
+</div>
+
+<!-- ══════════ TELA RESULTADO ══════════ -->
+<div id="telaResultado" class="tela">
+  <div class="header">
+    <div class="header-row">
+      <button class="btn-voltar" onclick="irPara('telaHome')">← Voltar</button>
+      <h1>📊 Resultado</h1>
+      <div style="width:70px;"></div>
+    </div>
+  </div>
+  <div class="scroll" id="conteudoResultado"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Modal adicionar item -->
+<div class="modal-bg" id="modalBg">
+  <div class="modal">
+    <h3 id="modalTitulo">Adicionar Item</h3>
+    <div class="campo">
+      <label>Nome</label>
+      <input id="modalNome" type="text" placeholder="Ex: Vale-refeição"/>
+    </div>
+    <div class="campo">
+      <label>Valor (¥)</label>
+      <input id="modalValor" type="number" placeholder="Ex: 10000"/>
+    </div>
+    <div class="campo" id="modalTipoDiv">
+      <label>Tipo</label>
+      <select id="modalTipo">
+        <option value="fixo">Fixo (¥)</option>
+        <option value="percentual">Percentual (%)</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-modal-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-modal-ok" onclick="confirmarModal()">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════════
+//  ESTADO GLOBAL
+// ══════════════════════════════════════════════
+let state = {
+  nome: '',
+  valorHora: 1350,
+  mes: new Date().getMonth() + 1,
+  ano: new Date().getFullYear(),
+  calendario: {},       // { 'YYYY-MM': { [dia]: 'dia'|'noite'|'folga' } }
+  creditos: [],         // [{nome, valor}]
+  descontos: [],        // [{nome, valor, tipo}]
+  bonus: { ativo: false, valor: 100000 },
+};
+
+const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
+               'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+let tabAtual = 'dados';
+let modalTipo = 'credito'; // ou 'desconto'
+
+// ── Carregar/salvar ──────────────────────────
+function salvarState() {
+  localStorage.setItem('salario_state', JSON.stringify(state));
+}
+function carregarState() {
+  const s = localStorage.getItem('salario_state');
+  if (s) {
+    try { state = { ...state, ...JSON.parse(s) }; } catch(e) {}
+  }
+}
+
+// ── Chave do calendário ──────────────────────
+function chaveCalMes() {
+  return `${state.ano}-${String(state.mes).padStart(2,'0')}`;
+}
+function getCalMes() {
+  return state.calendario[chaveCalMes()] || {};
+}
+function setDiaCal(dia, tipo) {
+  const k = chaveCalMes();
+  if (!state.calendario[k]) state.calendario[k] = {};
+  state.calendario[k][dia] = tipo;
+  salvarState();
+}
+
+// ══════════════════════════════════════════════
+//  NAVEGAÇÃO
+// ══════════════════════════════════════════════
+function irPara(id) {
+  document.querySelectorAll('.tela').forEach(t => t.classList.remove('ativa'));
+  document.getElementById(id).classList.add('ativa');
+}
+
+function setTab(tab) {
+  tabAtual = tab;
+  document.querySelectorAll('.tab').forEach((b,i) => {
+    const tabs = ['dados','calendario','extras'];
+    b.classList.toggle('ativo', tabs[i] === tab);
+  });
+  renderTab();
+}
+
+function renderTab() {
+  const c = document.getElementById('conteudoTab');
+  if (tabAtual === 'dados')      c.innerHTML = htmlDados();
+  if (tabAtual === 'calendario') c.innerHTML = htmlCalendario();
+  if (tabAtual === 'extras')     c.innerHTML = htmlExtras();
+  bindEvents();
+}
+
+// ══════════════════════════════════════════════
+//  ABA DADOS
+// ══════════════════════════════════════════════
+function htmlDados() {
+  return `
+  <div class="card">
+    <div class="card-titulo">👤 Dados Pessoais</div>
+    <div class="campo">
+      <label>Nome</label>
+      <input id="inpNome" type="text" placeholder="Seu nome" value="${state.nome}"/>
+    </div>
+    <div class="campo">
+      <label>Valor por Hora (¥)</label>
+      <input id="inpValorHora" type="number" value="${state.valorHora}"/>
+    </div>
+    <div class="valores-rapidos">
+      ${[1350,1400,1450,1500,1530].map(v =>
+        `<button class="btn-valor" onclick="setValorHora(${v})">¥${v.toLocaleString()}</button>`
+      ).join('')}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-titulo">📅 Mês de Referência</div>
+    <div class="nav-mes">
+      <button class="btn-nav" onclick="mudarMes(-1)">◀</button>
+      <div class="mes-atual">${MESES[state.mes-1]} ${state.ano}</div>
+      <button class="btn-nav" onclick="mudarMes(1)">▶</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-titulo">⚡ Preencher Calendário</div>
+    <div class="btns-turno">
+      <button class="btn-turno dia" onclick="preencher4x2('dia')">4x2 Começar Dia</button>
+      <button class="btn-turno noite" onclick="preencher4x2('noite')">4x2 Começar Noite</button>
+    </div>
+    <button class="btn-add" onclick="limparCalendario()">🗑️ Limpar calendário do mês</button>
+  </div>
+
+  <button class="btn-calcular" onclick="calcular()">🧮 Calcular Salário</button>
+  <button class="btn-sec" onclick="irPara('telaResultado')">📊 Ver Último Resultado</button>
+  `;
+}
+
+function setValorHora(v) {
+  state.valorHora = v;
+  const inp = document.getElementById('inpValorHora');
+  if (inp) inp.value = v;
+  salvarState();
+  mostrarToast(`Valor/hora: ¥${v.toLocaleString()}`);
+}
+
+function mudarMes(delta) {
+  state.mes += delta;
+  if (state.mes > 12) { state.mes = 1; state.ano++; }
+  if (state.mes < 1)  { state.mes = 12; state.ano--; }
+  salvarState();
+  renderTab();
+}
+
+// ══════════════════════════════════════════════
+//  ABA CALENDÁRIO
+// ══════════════════════════════════════════════
+function htmlCalendario() {
+  const cal = getCalMes();
+  const diasSemana = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const primeiroDia = new Date(state.ano, state.mes-1, 1).getDay();
+  const totalDias = new Date(state.ano, state.mes, 0).getDate();
+
+  let html = `
+  <div class="card">
+    <div class="card-titulo">📅 ${MESES[state.mes-1]} ${state.ano}</div>
+    <div style="margin-bottom:10px;font-size:12px;color:var(--sub);text-align:center;">
+      Toque em um dia para alternar: Folga → Dia → Noite → Folga
+    </div>
+    <div class="cal-grid">
+      ${diasSemana.map(d => `<div class="cal-header-dia">${d}</div>`).join('')}
+      ${Array(primeiroDia).fill('<div class="cal-dia vazio"></div>').join('')}
+  `;
+
+  for (let d = 1; d <= totalDias; d++) {
+    const dataObj = new Date(state.ano, state.mes-1, d);
+    const isDom = dataObj.getDay() === 0;
+    const tipo = cal[d] || 'folga';
+    let classe = tipo;
+    if (isDom && tipo === 'dia')   classe = 'domingo-dia';
+    if (isDom && tipo === 'noite') classe = 'domingo-noite';
+
+    const labels = { folga:'FOLGA', dia:'DIA', noite:'NOITE',
+                     'domingo-dia':'DOM D', 'domingo-noite':'DOM N' };
+    html += `
+      <div class="cal-dia ${classe}" onclick="toggleDia(${d})">
+        <div class="num">${d}</div>
+        <div class="tipo">${labels[classe] || ''}</div>
+      </div>`;
+  }
+
+  html += `</div>
+    <div class="legenda">
+      <div class="leg-item"><div class="leg-cor" style="background:rgba(127,140,141,.4)"></div>Folga</div>
+      <div class="leg-item"><div class="leg-cor" style="background:var(--blue)"></div>Dia</div>
+      <div class="leg-item"><div class="leg-cor" style="background:var(--purple)"></div>Noite</div>
+      <div class="leg-item"><div class="leg-cor" style="background:var(--red)"></div>Domingo</div>
+    </div>
+  </div>`;
+
+  // Resumo
+  const trabalhados = Object.values(cal).filter(t => t !== 'folga').length;
+  html += `
+  <div class="card">
+    <div class="card-titulo">📊 Resumo do Mês</div>
+    <div class="stat-row"><span class="stat-label">Dias trabalhados</span><span class="stat-val">${trabalhados}</span></div>
+    <div class="stat-row"><span class="stat-label">Dias de folga</span><span class="stat-val">${totalDias - trabalhados}</span></div>
+    <div class="stat-row"><span class="stat-label">Horas estimadas</span><span class="stat-val">${trabalhados * 11}h</span></div>
+  </div>`;
+
+  return html;
+}
+
+function toggleDia(dia) {
+  const cal = getCalMes();
+  const atual = cal[dia] || 'folga';
+  const ciclo = { folga: 'dia', dia: 'noite', noite: 'folga' };
+  setDiaCal(dia, ciclo[atual]);
+  renderTab();
+}
+
+function preencher4x2(inicio) {
+  const totalDias = new Date(state.ano, state.mes, 0).getDate();
+  const padrao = inicio === 'dia'
+    ? ['dia','dia','dia','dia','folga','folga']
+    : ['noite','noite','noite','noite','folga','folga'];
+
+  const k = chaveCalMes();
+  state.calendario[k] = {};
+  for (let d = 1; d <= totalDias; d++) {
+    state.calendario[k][d] = padrao[(d-1) % 6];
+  }
+  salvarState();
+  mostrarToast(`Calendário 4x2 ${inicio} aplicado!`);
+  renderTab();
+}
+
+function limparCalendario() {
+  state.calendario[chaveCalMes()] = {};
+  salvarState();
+  mostrarToast('Calendário limpo!');
+  renderTab();
+}
+
+// ══════════════════════════════════════════════
+//  ABA EXTRAS
+// ══════════════════════════════════════════════
+function htmlExtras() {
+  const creds = state.creditos.map((c,i) => `
+    <div class="item-row">
+      <span class="item-nome">${c.nome}</span>
+      <span class="item-valor credito">+¥${c.valor.toLocaleString()}</span>
+      <button class="btn-remover" onclick="removerCredito(${i})">×</button>
+    </div>`).join('');
+
+  const descs = state.descontos.map((d,i) => {
+    const val = d.tipo === 'fixo' ? `¥${d.valor.toLocaleString()}` : `${(d.valor*100).toFixed(1)}%`;
+    return `
+    <div class="item-row">
+      <span class="item-nome">${d.nome}</span>
+      <span class="item-valor desconto">-${val}</span>
+      <button class="btn-remover" onclick="removerDesconto(${i})">×</button>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="card">
+    <div class="card-titulo">⭐ Bônus</div>
+    <div class="toggle-row">
+      <span style="font-size:14px;font-weight:700;">Ativar Bônus este mês</span>
+      <label class="toggle">
+        <input type="checkbox" id="chkBonus" ${state.bonus.ativo ? 'checked' : ''} onchange="toggleBonus()"/>
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div id="bonusValorDiv" style="${state.bonus.ativo ? '' : 'display:none'}">
+      <div class="campo" style="margin-top:10px;">
+        <label>Valor do Bônus (¥)</label>
+        <input id="inpBonus" type="number" value="${state.bonus.valor}" onchange="state.bonus.valor=+this.value;salvarState();"/>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-titulo">✅ Créditos</div>
+    <div class="lista-itens">${creds || '<div style="color:var(--sub);font-size:13px;">Nenhum crédito adicionado</div>'}</div>
+    <button class="btn-add" onclick="abrirModal('credito')">+ Adicionar Crédito</button>
+  </div>
+
+  <div class="card">
+    <div class="card-titulo">❌ Descontos</div>
+    <div class="lista-itens">${descs || '<div style="color:var(--sub);font-size:13px;">Nenhum desconto adicionado</div>'}</div>
+    <button class="btn-add" onclick="abrirModal('desconto')">+ Adicionar Desconto</button>
+  </div>
+  `;
+}
+
+function toggleBonus() {
+  const chk = document.getElementById('chkBonus');
+  if (chk) state.bonus.ativo = chk.checked;
+  const div = document.getElementById('bonusValorDiv');
+  if (div) div.style.display = state.bonus.ativo ? '' : 'none';
+  salvarState();
+}
+
+function removerCredito(i) { state.creditos.splice(i,1); salvarState(); renderTab(); }
+function removerDesconto(i) { state.descontos.splice(i,1); salvarState(); renderTab(); }
+
+// ══════════════════════════════════════════════
+//  MODAL
+// ══════════════════════════════════════════════
+function abrirModal(tipo) {
+  modalTipo = tipo;
+  const modalTitulo = document.getElementById('modalTitulo');
+  const modalTipoDiv = document.getElementById('modalTipoDiv');
+  if (modalTitulo) modalTitulo.textContent = tipo === 'credito' ? '➕ Adicionar Crédito' : '➖ Adicionar Desconto';
+  if (modalTipoDiv) modalTipoDiv.style.display = tipo === 'desconto' ? '' : 'none';
+  const modalNome = document.getElementById('modalNome');
+  const modalValor = document.getElementById('modalValor');
+  if (modalNome) modalNome.value = '';
+  if (modalValor) modalValor.value = '';
+  const modalBg = document.getElementById('modalBg');
+  if (modalBg) modalBg.classList.add('show');
+}
+function fecharModal() { 
+  const modalBg = document.getElementById('modalBg');
+  if (modalBg) modalBg.classList.remove('show'); 
+}
+function confirmarModal() {
+  const nome = document.getElementById('modalNome').value.trim();
+  const valor = parseFloat(document.getElementById('modalValor').value);
+  if (!nome || isNaN(valor) || valor < 0) { mostrarToast('⚠️ Preencha nome e valor'); return; }
+
+  if (modalTipo === 'credito') {
+    state.creditos.push({ nome, valor });
+  } else {
+    const tipo = document.getElementById('modalTipo').value;
+    state.descontos.push({ nome, valor: tipo === 'percentual' ? valor/100 : valor, tipo });
+  }
+  salvarState();
+  fecharModal();
+  renderTab();
+  mostrarToast('Item adicionado!');
+}
+
+// ══════════════════════════════════════════════
+//  CÁLCULO
+// ══════════════════════════════════════════════
+function calcular() {
+  // Salvar campos da aba dados
+  const inpNome = document.getElementById('inpNome');
+  const inpVH   = document.getElementById('inpValorHora');
+  if (inpNome) state.nome = inpNome.value.trim();
+  if (inpVH)   state.valorHora = parseFloat(inpVH.value) || 1350;
+  salvarState();
+
+  const cal = getCalMes();
+  const totalDias = new Date(state.ano, state.mes, 0).getDate();
+
+  let totalBruto = 0;
+  let diasTrabalhados = 0;
+
+  for (let d = 1; d <= totalDias; d++) {
+    const tipo = cal[d] || 'folga';
+    if (tipo === 'folga') continue;
+
+    const data = new Date(state.ano, state.mes-1, d);
+    const isDom = data.getDay() === 0;
+    diasTrabalhados++;
+
+    if (isDom) {
+      // Domingo: 11h com 35% extra
+      totalBruto += 11 * state.valorHora * 1.35;
+    } else if (tipo === 'dia') {
+      // Dia: 9h normal + 2h extra 25%
+      totalBruto += (9 * state.valorHora) + (2 * state.valorHora * 1.25);
+    } else if (tipo === 'noite') {
+      // Noite: 3h normal + 8h extra 25%
+      totalBruto += (3 * state.valorHora) + (8 * state.valorHora * 1.25);
+    }
+  }
+
+  // Descontos
+  let totalDescontos = 0;
+  const detDescontos = state.descontos.map(d => {
+    const v = d.tipo === 'fixo' ? d.valor : totalBruto * d.valor;
+    totalDescontos += v;
+    return { nome: d.nome, valor: v, tipo: d.tipo, perc: d.valor };
+  });
+
+  // Créditos
+  let totalCreditos = state.creditos.reduce((s,c) => s + c.valor, 0);
+
+  // Bônus
+  const bonus = state.bonus.ativo ? state.bonus.valor : 0;
+
+  const liquido = totalBruto - totalDescontos + totalCreditos + bonus;
+
+  // Renderizar resultado
+  irPara('telaResultado');
+
+  const r = document.getElementById('conteudoResultado');
+  r.innerHTML = `
+  <div id="relatorioParaPrint" class="card">
+    <div class="resultado-nome">🧑‍💼 ${state.nome || 'Funcionário'}</div>
+    <div class="resultado-mes">${MESES[state.mes-1]} ${state.ano}</div>
+
+    ${bonus > 0 ? '<div class="bonus-badge">⭐ ESTE MÊS TEM BÔNUS ⭐</div>' : ''}
+
+    <div class="card-titulo">📈 Estatísticas</div>
+    <div class="stat-row"><span class="stat-label">Dias trabalhados</span><span class="stat-val">${diasTrabalhados} dias</span></div>
+    <div class="stat-row"><span class="stat-label">Horas totais</span><span class="stat-val">${diasTrabalhados * 11}h</span></div>
+    <div class="stat-row"><span class="stat-label">Valor/hora base</span><span class="stat-val">¥${state.valorHora.toLocaleString()}</span></div>
+
+    <hr class="separador"/>
+    <div class="card-titulo">💰 Valores Financeiros</div>
+
+    <div class="stat-row">
+      <span class="stat-label">Salário Bruto</span>
+      <span class="stat-val bruto">¥${Math.round(totalBruto).toLocaleString()}</span>
+    </div>
+
+    ${detDescontos.map(d => `
+    <div class="stat-row">
+      <span class="stat-label">Desconto (${d.nome})</span>
+      <span class="stat-val desconto">-¥${Math.round(d.valor).toLocaleString()}</span>
+    </div>`).join('')}
+
+    ${state.creditos.map(c => `
+    <div class="stat-row">
+      <span class="stat-label">Crédito (${c.nome})</span>
+      <span class="stat-val credito">+¥${Math.round(c.valor).toLocaleString()}</span>
+    </div>`).join('')}
+
+    ${bonus > 0 ? `
+    <div class="stat-row">
+      <span class="stat-label">⭐ Bônus</span>
+      <span class="stat-val bonus">+¥${Math.round(bonus).toLocaleString()}</span>
+    </div>` : ''}
+
+    <div class="liquido-row">
+      <span class="liquido-label">SALÁRIO LÍQUIDO</span>
+      <span class="liquido-val">¥${Math.round(liquido).toLocaleString()}</span>
+    </div>
+  </div>
+  <button class="btn-salvar-print" onclick="salvarPrint()">📸 SALVAR COMO IMAGEM</button>
+  `;
+}
+
+// ══════════════════════════════════════════════
+//  FUNÇÃO PARA SALVAR PRINT
+// ══════════════════════════════════════════════
+async function salvarPrint() {
+  const element = document.getElementById('relatorioParaPrint');
+  if (!element) {
+    mostrarToast('Erro: Relatório não encontrado');
+    return;
+  }
+  
+  mostrarToast('Gerando imagem...');
+  
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      backgroundColor: '#243342',
+      logging: false,
+      useCORS: true
+    });
+    
+    const link = document.createElement('a');
+    const dataUrl = canvas.toDataURL('image/png');
+    const nomeArquivo = `salario_${state.nome || 'funcionario'}_${MESES[state.mes-1]}_${state.ano}.png`;
+    
+    // Para dispositivos móveis, tenta salvar direto
+    if (navigator.msSaveBlob) {
+      const blob = canvas.toBlob(blob => navigator.msSaveBlob(blob, nomeArquivo));
+    } else {
+      link.download = nomeArquivo;
+      link.href = dataUrl;
+      link.click();
+    }
+    
+    mostrarToast('✅ Imagem salva na galeria!');
+  } catch (error) {
+    console.error('Erro ao gerar print:', error);
+    mostrarToast('❌ Erro ao gerar imagem');
+  }
+}
+
+// ══════════════════════════════════════════════
+//  BIND EVENTS
+// ══════════════════════════════════════════════
+function bindEvents() {
+  const inpNome = document.getElementById('inpNome');
+  if (inpNome) inpNome.addEventListener('change', e => { state.nome = e.target.value; salvarState(); });
+
+  const inpVH = document.getElementById('inpValorHora');
+  if (inpVH) inpVH.addEventListener('change', e => { state.valorHora = parseFloat(e.target.value) || 1350; salvarState(); });
+}
+
+// ══════════════════════════════════════════════
+//  TOAST
+// ══════════════════════════════════════════════
+function mostrarToast(msg) {
+  const t = document.getElementById('toast');
+  if (t) {
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+}
+
+// ══════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════
+carregarState();
+renderTab();
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('Service Worker não necessário'));
+}
+</script>
+</body>
+</html>
