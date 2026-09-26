@@ -114,15 +114,6 @@
              color:var(--sub);font-family:inherit;font-size:13px;font-weight:700;cursor:pointer;margin-top:8px;transition:all .2s;}
     .btn-add:active{border-color:var(--blue);color:var(--blue);}
 
-    /* ── Toggle bônus ── */
-    .toggle-row{display:flex;align-items:center;justify-content:space-between;padding:6px 0;}
-    .toggle{position:relative;width:44px;height:24px;}
-    .toggle input{opacity:0;width:0;height:0;}
-    .slider{position:absolute;inset:0;background:var(--border);border-radius:12px;cursor:pointer;transition:.3s;}
-    .slider:before{content:'';position:absolute;width:18px;height:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.3s;}
-    input:checked+.slider{background:var(--green);}
-    input:checked+.slider:before{transform:translateX(20px);}
-
     /* ── Botões principais ── */
     .btn-calcular{width:100%;padding:16px;background:linear-gradient(135deg,var(--green),#27ae60);
                   border:none;border-radius:var(--radius);color:#fff;font-family:inherit;
@@ -253,13 +244,14 @@
 // ══════════════════════════════════════════════
 let state = {
   nome: '',
-  valorHora: 1350,
+  valorHora: 1500,
   mes: new Date().getMonth() + 1,
   ano: new Date().getFullYear(),
   calendario: {},       // { 'YYYY-MM': { [dia]: 'dia'|'noite'|'folga' } }
   creditos: [],         // [{nome, valor}]
   descontos: [],        // [{nome, valor, tipo}]
-  bonus: { ativo: false, valor: 100000 },
+  bonusProducao: 0,     // valor (¥) do bônus de produção do mês
+  bonusAssiduidade: 0,  // valor (¥) do bônus de assiduidade do mês
 };
 
 const MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
@@ -334,7 +326,7 @@ function htmlDados() {
       <input id="inpValorHora" type="number" value="${state.valorHora}"/>
     </div>
     <div class="valores-rapidos">
-      ${[1350,1400,1450,1500,1530].map(v =>
+      ${[1500,1550,1600,1650].map(v =>
         `<button class="btn-valor" onclick="setValorHora(${v})">¥${v.toLocaleString()}</button>`
       ).join('')}
     </div>
@@ -491,19 +483,18 @@ function htmlExtras() {
 
   return `
   <div class="card">
-    <div class="card-titulo">⭐ Bônus</div>
-    <div class="toggle-row">
-      <span style="font-size:14px;font-weight:700;">Ativar Bônus este mês</span>
-      <label class="toggle">
-        <input type="checkbox" id="chkBonus" ${state.bonus.ativo ? 'checked' : ''} onchange="toggleBonus()"/>
-        <span class="slider"></span>
-      </label>
+    <div class="card-titulo">⭐ Bônus do Mês</div>
+    <div class="campo">
+      <label>Bônus de Produção (¥)</label>
+      <input id="inpBonusProducao" type="number" placeholder="0"
+             value="${state.bonusProducao || ''}"
+             onchange="state.bonusProducao=parseFloat(this.value)||0;salvarState();"/>
     </div>
-    <div id="bonusValorDiv" style="${state.bonus.ativo ? '' : 'display:none'}">
-      <div class="campo" style="margin-top:10px;">
-        <label>Valor do Bônus (¥)</label>
-        <input id="inpBonus" type="number" value="${state.bonus.valor}" onchange="state.bonus.valor=+this.value;salvarState();"/>
-      </div>
+    <div class="campo">
+      <label>Bônus de Assiduidade (¥)</label>
+      <input id="inpBonusAssiduidade" type="number" placeholder="0"
+             value="${state.bonusAssiduidade || ''}"
+             onchange="state.bonusAssiduidade=parseFloat(this.value)||0;salvarState();"/>
     </div>
   </div>
 
@@ -519,14 +510,6 @@ function htmlExtras() {
     <button class="btn-add" onclick="abrirModal('desconto')">+ Adicionar Desconto</button>
   </div>
   `;
-}
-
-function toggleBonus() {
-  const chk = document.getElementById('chkBonus');
-  if (chk) state.bonus.ativo = chk.checked;
-  const div = document.getElementById('bonusValorDiv');
-  if (div) div.style.display = state.bonus.ativo ? '' : 'none';
-  salvarState();
 }
 
 function removerCredito(i) { state.creditos.splice(i,1); salvarState(); renderTab(); }
@@ -617,10 +600,12 @@ function calcular() {
   // Créditos
   let totalCreditos = state.creditos.reduce((s,c) => s + c.valor, 0);
 
-  // Bônus
-  const bonus = state.bonus.ativo ? state.bonus.valor : 0;
+  // Bônus (Produção + Assiduidade)
+  const bonusProducao = state.bonusProducao || 0;
+  const bonusAssiduidade = state.bonusAssiduidade || 0;
+  const totalBonus = bonusProducao + bonusAssiduidade;
 
-  const liquido = totalBruto - totalDescontos + totalCreditos + bonus;
+  const liquido = totalBruto - totalDescontos + totalCreditos + totalBonus;
 
   // Renderizar resultado
   irPara('telaResultado');
@@ -631,7 +616,7 @@ function calcular() {
     <div class="resultado-nome">🧑‍💼 ${state.nome || 'Funcionário'}</div>
     <div class="resultado-mes">${MESES[state.mes-1]} ${state.ano}</div>
 
-    ${bonus > 0 ? '<div class="bonus-badge">⭐ ESTE MÊS TEM BÔNUS ⭐</div>' : ''}
+    ${totalBonus > 0 ? '<div class="bonus-badge">⭐ ESTE MÊS TEM BÔNUS ⭐</div>' : ''}
 
     <div class="card-titulo">📈 Estatísticas</div>
     <div class="stat-row"><span class="stat-label">Dias trabalhados</span><span class="stat-val">${diasTrabalhados} dias</span></div>
@@ -658,10 +643,16 @@ function calcular() {
       <span class="stat-val credito">+¥${Math.round(c.valor).toLocaleString()}</span>
     </div>`).join('')}
 
-    ${bonus > 0 ? `
+    ${bonusProducao > 0 ? `
     <div class="stat-row">
-      <span class="stat-label">⭐ Bônus</span>
-      <span class="stat-val bonus">+¥${Math.round(bonus).toLocaleString()}</span>
+      <span class="stat-label">⭐ Bônus de Produção</span>
+      <span class="stat-val bonus">+¥${Math.round(bonusProducao).toLocaleString()}</span>
+    </div>` : ''}
+
+    ${bonusAssiduidade > 0 ? `
+    <div class="stat-row">
+      <span class="stat-label">⭐ Bônus de Assiduidade</span>
+      <span class="stat-val bonus">+¥${Math.round(bonusAssiduidade).toLocaleString()}</span>
     </div>` : ''}
 
     <div class="liquido-row">
